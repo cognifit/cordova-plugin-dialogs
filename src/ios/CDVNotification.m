@@ -127,12 +127,12 @@ static void playBeep(int count) {
     #else
         AudioServicesCreateSystemSoundID((CFURLRef)audioPath, &completeSound);
     #endif
-    AudioServicesAddSystemSoundCompletion(completeSound, NULL, NULL, soundCompletionCallback, (void*)(cbDataCount-1));
+    AudioServicesAddSystemSoundCompletion(completeSound, NULL, NULL, soundCompletionCallback, (void*)(intptr_t)(cbDataCount-1));
     AudioServicesPlaySystemSound(completeSound);
 }
 
 static void soundCompletionCallback(SystemSoundID  ssid, void* data) {
-    int count = (int)data;
+    int count = (int)(intptr_t)data;
     AudioServicesRemoveSystemSoundCompletion (ssid);
     AudioServicesDisposeSystemSoundID(ssid);
     if (count > 0) {
@@ -148,10 +148,26 @@ static void soundCompletionCallback(SystemSoundID  ssid, void* data) {
     }];
 }
 
+// The key window of the foreground scene; UIApplication.keyWindow is deprecated since iOS 13.
+-(UIWindow *)keyWindow {
+    for (UIScene *scene in [UIApplication sharedApplication].connectedScenes) {
+        if (scene.activationState != UISceneActivationStateForegroundActive || ![scene isKindOfClass:[UIWindowScene class]]) {
+            continue;
+        }
+        for (UIWindow *window in ((UIWindowScene *)scene).windows) {
+            if (window.isKeyWindow) {
+                return window;
+            }
+        }
+    }
+    return self.viewController.view.window;
+}
+
 -(UIViewController *)getTopPresentedViewController {
     UIViewController *presentingViewController = self.viewController;
-    if (presentingViewController.view.window != [UIApplication sharedApplication].keyWindow){
-        presentingViewController = [UIApplication sharedApplication].keyWindow.rootViewController;
+    UIWindow *keyWindow = [self keyWindow];
+    if (presentingViewController.view.window != keyWindow){
+        presentingViewController = keyWindow.rootViewController;
     }
 
     while (presentingViewController.presentedViewController != nil && ![presentingViewController.presentedViewController isBeingDismissed]){
